@@ -4,10 +4,10 @@ __license__ = "MIT"
 
 
 DS_DATA_MODE = 0xE1
-DS_CMD_MODE = 0xE3
+DS_CMD_MODE  = 0xE3
 
 DS_PULSE_TERM = 0xF1
-DS_RESET = b'\xC1'
+DS_RESET      = 0xC1
 
 DS_RES_ONEW_SHORT = 0xCC
 DS_RES_ONEW_PRESC = 0xCD
@@ -29,19 +29,60 @@ DS_PARAM_READ    = 0x01
 DS_PARAM_WRRITE  = 0x04
 
 
+class DS2480Exception(Exception):
+    pass
+
+
+class DS2480Response():
+    def __init__(self, response):
+        self._res = response
+
+    @property
+    def response(self):
+        return self._res
+
+
+class DS2480ResetResponse(DS2480Response):
+    BUS_SHORTED             = 0b00
+    PRESENCE_PULSE          = 0b01
+    ALARMING_PRESENCE_PULSE = 0b10
+    NO_PRESENCE_PULSE       = 0b11
+
+    def __str__(self):
+        if self._res == self.BUS_SHORTED:
+            return "Bus shorted"
+        if self._res == self.PRESENCE_PULSE:
+            return "Presence pulse"
+        if self._res == self.ALARMING_PRESENCE_PULSE:
+            return "Alarming presence pulse"
+        if self._res == self.NO_PRESENCE_PULSE:
+            return "No presence pulse"
+
+
 class DS2480():
     def __init__(self, serial):
         self._serial = serial
 
 
+    def _write_byte(self, byte):
+        return self._serial.write(byte.to_bytes(1, 'little'))
+
+
     def reset(self):
         # DS will not reply on first reset after power-up, so send two
-        self._serial.write(DS_RESET+DS_RESET)
-        return self._serial.read()
+        self._write_byte(DS_RESET)
+        self._write_byte(DS_RESET)
+        response = self._serial.read()
+
+        if len(response) != 1:
+            raise DS2480Exception("Bad response", response)
+
+        if (response[0] & 0b1100_1100) != 0b1100_1100:
+            raise DS2480Exception("Bad response", response)
+
+        return DS2480ResetResponse(response[0] & 0b000000_11)
+
 
     def read_param(self, param):
-        data = bytearray(1)
-        data[0] = DS_PARAM_BIT | (param << DS_PARAM_READ)
-        self._serial.write(data)
-
+        self._write_byte(DS_PARAM_BIT | (param << DS_PARAM_READ))
         return self._serial.read()
