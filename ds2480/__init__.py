@@ -54,6 +54,31 @@ class DS2480ResetResponse(DS2480Response):
             return "No presence pulse"
 
 
+class DS2480Parameter():
+    def __init__(self, response):
+        self._res = response
+
+    @property
+    def response(self):
+        return self._res
+
+
+class DS2480ParameterLOAD(DS2480Parameter):
+    LOAD={
+        0b000: 1.8,
+        0b001: 2.1,
+        0b010: 2.4,
+        0b011: 2.7,
+        0b100: 3.0,
+        0b101: 3.3,
+        0b110: 3.6,
+        0b111: 3.9}
+
+
+    def __str__(self):
+        return "Load: {}mA".format(self.LOAD[self._res])
+
+
 class DS2480():
     def __init__(self, serial):
         self._serial = serial
@@ -61,6 +86,22 @@ class DS2480():
 
     def _write_byte(self, byte):
         return self._serial.write(byte.to_bytes(1, 'little'))
+
+
+    def _read_param(self, param):
+        self._write_byte(DS_PARAM_BIT | (param << DS_PARAM_READ))
+        response = self._serial.read()[0]
+
+        if response & 0b1000_0001 != 0b0000_0000:
+            raise DS2480Exception("Bad response", response)
+
+        return response >> 1
+
+
+    @property
+    def load_sensor_threshold(self):
+        res = self._read_param(DS_PARAM_LOAD)
+        return DS2480ParameterLOAD(res)
 
 
     def reset(self):
@@ -76,8 +117,3 @@ class DS2480():
             raise DS2480Exception("Bad response", response)
 
         return DS2480ResetResponse(response[0] & 0b000000_11)
-
-
-    def read_param(self, param):
-        self._write_byte(DS_PARAM_BIT | (param << DS_PARAM_READ))
-        return self._serial.read()
