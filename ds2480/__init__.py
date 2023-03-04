@@ -12,6 +12,9 @@ DS_RESET      = 0xC1
 DS_WRITE_0_BIT = 0x81
 DS_WRITE_1_BIT = 0x91
 
+DS_SEARCH_ACCEL_OFF = 0xA1
+DS_SEARCH_ACCEL_ON  = 0xB1
+
 # Parameter codes
 DS_PARAM_PDSRC = 0b001
 DS_PARAM_PPD   = 0b010
@@ -159,6 +162,11 @@ class DS2480():
 
 
         return DS2480ResetResponse(res & 0b000000_11)
+
+
+    def search_accel(self, status):
+        self._set_mode(DS_CMD_MODE)
+        self._write_byte(DS_SEARCH_ACCEL_ON if status else DS_SEARCH_ACCEL_OFF)
 
 
     # Write byte to one wire bus
