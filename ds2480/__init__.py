@@ -9,6 +9,9 @@ DS_CMD_MODE  = 0xE3
 DS_PULSE_TERM = 0xF1
 DS_RESET      = 0xC1
 
+DS_WRITE_0_BIT = 0x81
+DS_WRITE_1_BIT = 0x91
+
 # Parameter codes
 DS_PARAM_PDSRC = 0b001
 DS_PARAM_PPD   = 0b010
@@ -107,6 +110,17 @@ class DS2480():
     def load_sensor_threshold(self):
         res = self._read_param(DS_PARAM_LOAD)
         return DS2480ParameterLOAD(res)
+
+
+    def write_bit(self, bit):
+        self._set_mode(DS_CMD_MODE)
+        self._write_byte(DS_WRITE_1_BIT if bit else DS_WRITE_0_BIT)
+        res = self._read_byte()
+        return res & 1
+
+
+    def read_bit(self):
+        return self.write_bit(1)
 
 
     def reset(self):
