@@ -88,9 +88,14 @@ class DS2480():
         return self._serial.write(byte.to_bytes(1, 'little'))
 
 
+    def _read_byte(self):
+        res = self._serial.read()
+        return res[0] if res else None
+
+
     def _read_param(self, param):
         self._write_byte(DS_PARAM_BIT | (param << DS_PARAM_READ))
-        response = self._serial.read()[0]
+        response = self._read_byte()
 
         if response & 0b1000_0001 != 0b0000_0000:
             raise DS2480Exception("Bad response", response)
@@ -108,7 +113,7 @@ class DS2480():
         # DS will not reply on first reset after power-up, so send two
         self._write_byte(DS_RESET)
         self._write_byte(DS_RESET)
-        response = self._serial.read()
+        res = self._read_byte()
 
         if len(response) != 1:
             raise DS2480Exception("Bad response", response)
