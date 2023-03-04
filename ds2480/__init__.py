@@ -110,10 +110,12 @@ class DS2480():
 
 
     def _set_mode(self, mode):
-        if self._mode != mode:
-            print("Switch mode to: {}".format("CMD" if mode == DS_CMD_MODE else "DATA"))
-            self._write_byte(mode)
-            self._mode = mode
+        if self._mode == mode:
+            return
+
+        print("Switch mode to: {}".format("CMD" if mode == DS_CMD_MODE else "DATA"))
+        self._write_byte(mode)
+        self._mode = mode
 
 
     @property
@@ -135,7 +137,7 @@ class DS2480():
 
     def reset(self):
         # If we know, we are in DATA mode, switch to CMD first
-        if self._mode != DS_CMD_MODE:
+        if self._mode == DS_DATA_MODE:
             self._set_mode(DS_CMD_MODE)
 
         self._write_byte(DS_RESET)
