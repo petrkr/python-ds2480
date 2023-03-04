@@ -7,7 +7,6 @@ ds = ds2480.DS2480(s)
 
 data = ds.reset()
 print(data)
+print(data.response)
 
-data = ds.read_param(ds2480.DS_PARAM_LOAD)
-print(data)
-
+print(ds.load_sensor_threshold)
