@@ -106,6 +106,13 @@ class DS2480():
         return response >> 1
 
 
+    def _set_mode(self, mode):
+        if self._mode != mode:
+            print("Switch mode to: {}".format("CMD" if mode == DS_CMD_MODE else "DATA"))
+            self._write_byte(mode)
+            self._mode = mode
+
+
     @property
     def load_sensor_threshold(self):
         res = self._read_param(DS_PARAM_LOAD)
