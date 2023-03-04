@@ -85,6 +85,9 @@ class DS2480ParameterLOAD(DS2480Parameter):
 class DS2480():
     def __init__(self, serial):
         self._serial = serial
+        self._serial.timeout = 1
+        self._mode = None
+        self.reset()
 
 
     def _write_byte(self, byte):
@@ -131,15 +134,43 @@ class DS2480():
 
 
     def reset(self):
-        # DS will not reply on first reset after power-up, so send two
-        self._write_byte(DS_RESET)
+        # If we know, we are in DATA mode, switch to CMD first
+        if self._mode != DS_CMD_MODE:
+            self._set_mode(DS_CMD_MODE)
+
         self._write_byte(DS_RESET)
         res = self._read_byte()
 
-        if len(response) != 1:
-            raise DS2480Exception("Bad response", response)
+        # DS will not reply on first reset after power-up, so send second
+        if not res:
+            print("Power on? Reset twice")
+            self._write_byte(DS_RESET)
+            res = self._read_byte()
 
-        if (response[0] & 0b1100_1100) != 0b1100_1100:
-            raise DS2480Exception("Bad response", response)
+        if not res:
+            raise DS2480Exception("No response from DS2480, is it connected?")
 
-        return DS2480ResetResponse(response[0] & 0b000000_11)
+        if (res & 0b1100_1100) != 0b1100_1100:
+            print("Bad response, try switch to CMD mode and reset again")
+            self._set_mode(DS_CMD_MODE)
+            return self.reset()
+
+
+        return DS2480ResetResponse(res & 0b000000_11)
+
+
+    # Write byte to one wire bus
+    def write(self, byte):
+        self._set_mode(DS_DATA_MODE)
+        self._write_byte(byte)
+
+        # For those bytes we need transmit twice
+        if byte in [DS_CMD_MODE, DS_DATA_MODE, DS_PULSE_TERM]:
+            self._write_byte(byte)
+
+        return self._read_byte()
+
+
+    def read(self):
+        self._set_mode(DS_DATA_MODE)
+        return self.write(0xFF)
