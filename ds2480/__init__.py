@@ -48,6 +48,7 @@ DS_CRC_TABLE = [
     233,183, 85, 11,136,214, 52,106, 43,117,151,201, 74, 20,246,168,
     116, 42,200,150, 21, 75,169,247,182,232, 10, 84,215,137,107, 53]
 
+
 class DS2480Exception(Exception):
     pass
 
@@ -147,6 +148,22 @@ class DS2480():
         return crc == 0
 
 
+    def _get_bit(self, loc, buf):
+        nbyt = (loc // 8)
+        nbit = loc - (nbyt * 8)
+
+        return ((buf[nbyt] >> nbit) & 0x01)
+
+
+    def _set_bit(self, loc, buf, value):
+        nbyt = (loc // 8)
+        nbit = loc - (nbyt * 8)
+        if (value):
+            buf[nbyt] |= (0x01 << nbit)
+        else:
+            buf[nbyt] &= ~(0x01 << nbit)
+
+
     @property
     def load_sensor_threshold(self):
         res = self._read_param(DS_PARAM_LOAD)
@@ -190,9 +207,50 @@ class DS2480():
         return DS2480ResetResponse(res & 0b000000_11)
 
 
-    def search_accel(self, status):
+    def _search_accel(self, status):
         self._set_mode(DS_CMD_MODE)
         self._write_byte(DS_SEARCH_ACCEL_ON if status else DS_SEARCH_ACCEL_OFF)
+
+
+    def search(self):
+        last_rom = bytearray(8)
+        rom_ids = []
+        last_discrepancy = -1
+
+        while True:
+            self.reset()
+            tmp_discrepancy = -1
+            data = bytearray(16)
+            for i in range(64):
+                if i < last_discrepancy:
+                    self._set_bit(i*2+1, data, self._get_bit(i, last_rom))
+                elif i == last_discrepancy:
+                    self._set_bit(i*2+1, data, 1)
+
+            self.write(0xF0)
+            self._search_accel(True)
+            for i in range(0, 16):
+                data[i] = self.write(data[i])
+            self._search_accel(False)
+
+            rom_id = bytearray(8)
+            for i in range(64):
+                # Parse current ROM ID
+                self._set_bit(i, rom_id, self._get_bit(i*2+1, data))
+
+                d, r = self._get_bit(i*2, data), self._get_bit(i*2+1, data)
+
+                if d == 1 and r == 0:
+                    tmp_discrepancy = last_discrepancy = i
+
+            if self._check_crc_8(rom_id):
+                rom_ids.append(rom_id)
+                last_rom = rom_id
+
+            if tmp_discrepancy == -1:
+                break
+
+        return rom_ids
 
 
     # Write byte to one wire bus
