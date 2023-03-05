@@ -135,7 +135,6 @@ class DS2480():
         if self._mode == mode:
             return
 
-        print("Switch mode to: {}".format("CMD" if mode == DS_CMD_MODE else "DATA"))
         self._write_byte(mode)
         self._mode = mode
 
@@ -191,7 +190,6 @@ class DS2480():
 
         # DS will not reply on first reset after power-up, so send second
         if not res:
-            print("Power on? Reset twice")
             self._write_byte(DS_RESET)
             res = self._read_byte()
 
@@ -199,7 +197,6 @@ class DS2480():
             raise DS2480Exception("No response from DS2480, is it connected?")
 
         if (res & 0b1100_1100) != 0b1100_1100:
-            print("Bad response, try switch to CMD mode and reset again")
             self._set_mode(DS_CMD_MODE)
             return self.reset()
 
